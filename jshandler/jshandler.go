@@ -30,6 +30,15 @@ func New(
 		rt := goja.New()
 
 		for k, v := range globals {
+			vf, isRuntimeValueFactory := v.(func(rt *goja.Runtime) (any, error))
+			if isRuntimeValueFactory {
+				var err error
+				v, err = vf(rt)
+				if err != nil {
+					return nil, fmt.Errorf("runtime value creation for %s failed: %w", k, err)
+				}
+			}
+
 			rt.Set(k, v)
 		}
 
