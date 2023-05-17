@@ -76,3 +76,21 @@ func RenderTemplateForScope(partials map[string]string, currentPath string, w io
 	}
 
 }
+
+func RenderTemplateForScopeToString(partials map[string]string, currentPath string) func(name string, data interface{}) (string, error) {
+	tc := &templateCache{
+		cached: map[string]*mustache.Template{},
+		sp:     scopedPartialProvider{partials: partials, scope: currentPath},
+		mu:     &sync.RWMutex{},
+	}
+
+	return func(name string, data any) (string, error) {
+		template, err := tc.getTemplate(name)
+		if err != nil {
+			return "", fmt.Errorf("could not get/parse template %s in scope %s: %w", name, currentPath, err)
+		}
+
+		return template.Render(data)
+	}
+
+}

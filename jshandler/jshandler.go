@@ -109,6 +109,7 @@ func New(
 
 		// add function to render mustache templates
 		rt.Set("render", mustache.RenderTemplateForScope(templatePartials, path.Dir(requestPath), w))
+		rt.Set("renderToString", mustache.RenderTemplateForScopeToString(templatePartials, path.Dir(requestPath)))
 
 		// add function to send SSE
 

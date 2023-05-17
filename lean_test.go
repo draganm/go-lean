@@ -115,3 +115,12 @@ func TestRuntimeValueFactory(t *testing.T) {
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/valueFactory", nil, 200)
 	require.HTTPBodyContains(w.ServeHTTP, "GET", "/valueFactory", nil, "bar")
 }
+
+func TestRenderToString(t *testing.T) {
+	require := require.New(t)
+	w, err := lean.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	require.NoError(err)
+
+	require.HTTPStatusCode(w.ServeHTTP, "GET", "/templateToString", nil, 200)
+
+}
