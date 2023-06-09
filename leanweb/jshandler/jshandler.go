@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/mustache"
+	"github.com/draganm/go-lean/leanweb/mustache"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )

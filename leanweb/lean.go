@@ -1,4 +1,4 @@
-package lean
+package leanweb
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/draganm/go-lean/jshandler"
+	"github.com/draganm/go-lean/leanweb/jshandler"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
