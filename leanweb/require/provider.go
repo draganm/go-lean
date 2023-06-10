@@ -13,7 +13,7 @@ import (
 
 var libRegexp = regexp.MustCompile(`^/lib/(.+).js$`)
 
-func NewProvider(src fs.FS, root string) (providers.GlobalsProvider, error) {
+func NewProvider(src fs.FS, root string) (providers.GenericGlobalsProvider, error) {
 
 	libs := map[string]string{}
 

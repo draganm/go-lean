@@ -15,7 +15,7 @@ func New(
 	log logr.Logger,
 	requestPath, code string,
 	globals map[string]any,
-	globalsProviders []providers.GlobalsProvider,
+	globalsProviders []providers.GenericGlobalsProvider,
 	requestGlobalsProviders []providers.RequestGlobalsProvider,
 ) (http.HandlerFunc, error) {
 

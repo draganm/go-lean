@@ -17,8 +17,9 @@ import (
 var simple embed.FS
 
 func TestServingStaticFiles(t *testing.T) {
+
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/", nil, 200)
@@ -27,7 +28,7 @@ func TestServingStaticFiles(t *testing.T) {
 
 func TestServingDynamicContent(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/123", nil, 200)
@@ -36,7 +37,7 @@ func TestServingDynamicContent(t *testing.T) {
 
 func TestServingDynamicContentWithParams(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/vars/123", nil, 200)
@@ -46,7 +47,7 @@ func TestServingDynamicContentWithParams(t *testing.T) {
 
 func TestServingDynamicContentWithTemplates(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/template", nil, 200)
@@ -56,7 +57,7 @@ func TestServingDynamicContentWithTemplates(t *testing.T) {
 
 func TestUsingLibraries(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/libuser", nil, 200)
@@ -65,7 +66,7 @@ func TestUsingLibraries(t *testing.T) {
 }
 
 func BenchmarkSimpleTemplate(b *testing.B) {
-	handler, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	handler, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
 	if err != nil {
 		b.Error(err)
 	}
@@ -81,7 +82,7 @@ func BenchmarkSimpleTemplate(b *testing.B) {
 }
 
 func BenchmarkUsingLibraries(b *testing.B) {
-	handler, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	handler, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
 	if err != nil {
 		b.Error(err)
 	}
@@ -98,7 +99,7 @@ func BenchmarkUsingLibraries(b *testing.B) {
 
 func TestSSE(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{}, nil)
 	require.NoError(err)
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/sse", nil, 200)
 	require.HTTPBodyContains(w.ServeHTTP, "GET", "/sse", nil, "event: foo\ndata: bar\n\n")
@@ -110,7 +111,7 @@ func TestRuntimeValueFactory(t *testing.T) {
 		"myValue": func(rt *goja.Runtime) (any, error) {
 			return "bar", nil
 		},
-	})
+	}, nil)
 	require.NoError(err)
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/valueFactory", nil, 200)
 	require.HTTPBodyContains(w.ServeHTTP, "GET", "/valueFactory", nil, "bar")
@@ -118,7 +119,7 @@ func TestRuntimeValueFactory(t *testing.T) {
 
 func TestRenderToString(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{}, nil)
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/templateToString", nil, 200)
