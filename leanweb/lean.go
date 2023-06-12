@@ -16,6 +16,7 @@ import (
 
 	"github.com/draganm/go-lean/leanweb/jshandler"
 	"github.com/draganm/go-lean/leanweb/mustache"
+	"github.com/draganm/go-lean/leanweb/sse"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
@@ -50,6 +51,11 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 		return nil, fmt.Errorf("could not initialize mustache: %w", err)
 	}
 
+	globalsProviders := []jshandler.RequestGlobalsProvider{
+		mp,
+		sse.NewProvider(),
+	}
+
 	libs := map[string]string{}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -79,7 +85,13 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 		handlerSubmatches := handlerRegexp.FindStringSubmatch(fileName)
 		if len(handlerSubmatches) == 2 {
 			method := handlerSubmatches[1]
-			handler, err := jshandler.New(log, withoutPrefix, string(data), globals, []jshandler.RequestGlobalsProvider{mp}, libs)
+			handler, err := jshandler.New(
+				log, withoutPrefix,
+				string(data),
+				globals,
+				globalsProviders,
+				libs,
+			)
 			if err != nil {
 				return fmt.Errorf("could not create js handler: %w", err)
 			}
