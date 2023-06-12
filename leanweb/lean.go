@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/draganm/go-lean/leanweb/jshandler"
+	"github.com/draganm/go-lean/leanweb/mustache"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
@@ -24,8 +25,10 @@ type Lean struct {
 }
 
 var handlerRegexp = regexp.MustCompile(`^@([A-Z]+).js$`)
-var templateRegexp = regexp.MustCompile(`^(.+).mustache$`)
+
 var libRegexp = regexp.MustCompile(`^/lib/(.+).js$`)
+
+type RequestGlobalsProvider jshandler.RequestGlobalsProvider
 
 func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean, error) {
 	r := chi.NewRouter()
@@ -42,10 +45,14 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 		staticGetHandlers[path] = true
 	}
 
-	templates := map[string]string{}
+	mp, err := mustache.NewProvider(src, root)
+	if err != nil {
+		return nil, fmt.Errorf("could not initialize mustache: %w", err)
+	}
+
 	libs := map[string]string{}
 
-	err := fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -67,12 +74,12 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 			return fmt.Errorf("could not read %s: %w", pth, err)
 		}
 
-		fileDir, fileName := path.Split(withoutPrefix)
+		_, fileName := path.Split(withoutPrefix)
 
 		handlerSubmatches := handlerRegexp.FindStringSubmatch(fileName)
 		if len(handlerSubmatches) == 2 {
 			method := handlerSubmatches[1]
-			handler, err := jshandler.New(log, withoutPrefix, string(data), globals, templates, libs)
+			handler, err := jshandler.New(log, withoutPrefix, string(data), globals, []jshandler.RequestGlobalsProvider{mp}, libs)
 			if err != nil {
 				return fmt.Errorf("could not create js handler: %w", err)
 			}
@@ -93,18 +100,9 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 			return nil
 		}
 
-		templateSubmatches := templateRegexp.FindStringSubmatch(fileName)
-		if len(templateSubmatches) == 2 {
-			name := templateSubmatches[1]
-			templates[path.Join(fileDir, name)] = string(data)
-			return nil
-		}
-
 		if libRegexp.MatchString(withoutPrefix) {
 			libs[withoutPrefix] = string(data)
 		}
-
-		// handling of the static content
 
 		t := time.Now()
 

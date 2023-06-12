@@ -10,30 +10,60 @@ import (
 	"github.com/cbroglie/mustache"
 )
 
-type scopedPartialProvider struct {
-	partials map[string]string
-	scope    string
+func renderTemplateForScope(tc *scopedTemplateCache, w io.Writer) func(name string, data interface{}) error {
+
+	return func(name string, data any) error {
+		template, err := tc.getTemplate(name)
+		if err != nil {
+			return fmt.Errorf("could not get/parse template %s in scope %s: %w", name, tc.sp.scope, err)
+		}
+
+		return template.FRender(w, data)
+	}
+
 }
 
-func (sp scopedPartialProvider) Get(name string) (string, error) {
-	if !strings.HasPrefix(name, "/") {
-		name = path.Join(sp.scope, name)
+func renderTemplateForScopeToString(tc *scopedTemplateCache) func(name string, data interface{}) (string, error) {
+
+	return func(name string, data any) (string, error) {
+		template, err := tc.getTemplate(name)
+		if err != nil {
+			return "", fmt.Errorf("could not get/parse template %s in scope %s: %w", name, tc.sp.scope, err)
+		}
+
+		return template.Render(data)
 	}
-	name = path.Clean(name)
-	partial, found := sp.partials[name]
+
+}
+
+type templateCacheForPathFactory struct {
+	partials      map[string]string
+	cachesForPath map[string]*scopedTemplateCache
+	mu            *sync.Mutex
+}
+
+func (tf *templateCacheForPathFactory) getTemplateCacheForPath(pth string) *scopedTemplateCache {
+	tf.mu.Lock()
+	defer tf.mu.Unlock()
+	tc, found := tf.cachesForPath[pth]
 	if !found {
-		return "", fmt.Errorf("could not find mustache partial %s", name)
+		tc = &scopedTemplateCache{
+			cached: make(map[string]*mustache.Template),
+			sp:     scopedPartialProvider{partials: tf.partials, scope: pth},
+			mu:     &sync.RWMutex{},
+		}
+		tf.cachesForPath[pth] = tc
 	}
-	return partial, nil
+	return tc
 }
 
-type templateCache struct {
+type scopedTemplateCache struct {
 	cached map[string]*mustache.Template
 	sp     scopedPartialProvider
 	mu     *sync.RWMutex
 }
 
-func (tc *templateCache) getTemplate(name string) (*mustache.Template, error) {
+func (tc *scopedTemplateCache) getTemplate(name string) (*mustache.Template, error) {
 	tc.mu.RLock()
 	template, found := tc.cached[name]
 	if found {
@@ -59,38 +89,19 @@ func (tc *templateCache) getTemplate(name string) (*mustache.Template, error) {
 	return template, nil
 }
 
-func RenderTemplateForScope(partials map[string]string, currentPath string, w io.Writer) func(name string, data interface{}) error {
-	tc := &templateCache{
-		cached: map[string]*mustache.Template{},
-		sp:     scopedPartialProvider{partials: partials, scope: currentPath},
-		mu:     &sync.RWMutex{},
-	}
-
-	return func(name string, data any) error {
-		template, err := tc.getTemplate(name)
-		if err != nil {
-			return fmt.Errorf("could not get/parse template %s in scope %s: %w", name, currentPath, err)
-		}
-
-		return template.FRender(w, data)
-	}
-
+type scopedPartialProvider struct {
+	partials map[string]string
+	scope    string
 }
 
-func RenderTemplateForScopeToString(partials map[string]string, currentPath string) func(name string, data interface{}) (string, error) {
-	tc := &templateCache{
-		cached: map[string]*mustache.Template{},
-		sp:     scopedPartialProvider{partials: partials, scope: currentPath},
-		mu:     &sync.RWMutex{},
+func (sp scopedPartialProvider) Get(name string) (string, error) {
+	if !strings.HasPrefix(name, "/") {
+		name = path.Join(sp.scope, name)
 	}
-
-	return func(name string, data any) (string, error) {
-		template, err := tc.getTemplate(name)
-		if err != nil {
-			return "", fmt.Errorf("could not get/parse template %s in scope %s: %w", name, currentPath, err)
-		}
-
-		return template.Render(data)
+	name = path.Clean(name)
+	partial, found := sp.partials[name]
+	if !found {
+		return "", fmt.Errorf("could not find mustache partial %s", name)
 	}
-
+	return partial, nil
 }

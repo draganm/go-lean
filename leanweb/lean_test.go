@@ -118,7 +118,7 @@ func TestRuntimeValueFactory(t *testing.T) {
 
 func TestRenderToString(t *testing.T) {
 	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/templateToString", nil, 200)

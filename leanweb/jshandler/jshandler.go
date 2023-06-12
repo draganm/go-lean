@@ -3,21 +3,21 @@ package jshandler
 import (
 	"fmt"
 	"net/http"
-	"path"
 	"strings"
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/leanweb/mustache"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
+
+type RequestGlobalsProvider func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error)
 
 func New(
 	log logr.Logger,
 	requestPath, code string,
 	globals map[string]any,
-	templatePartials map[string]string,
+	requestGlobalsProviders []RequestGlobalsProvider,
 	libs map[string]string,
 ) (http.HandlerFunc, error) {
 
@@ -107,9 +107,32 @@ func New(
 			return
 		}
 
-		// add function to render mustache templates
-		rt.Set("render", mustache.RenderTemplateForScope(templatePartials, path.Dir(requestPath), w))
-		rt.Set("renderToString", mustache.RenderTemplateForScopeToString(templatePartials, path.Dir(requestPath)))
+		addedGlobals := []string{}
+
+		// remove globals at the end of the request before it's returned to the pool
+		defer func() {
+			for _, g := range addedGlobals {
+				rt.GlobalObject().Delete(g)
+			}
+		}()
+
+		for _, gp := range requestGlobalsProviders {
+			globals, err := gp(requestPath, rt, w, r)
+			if err != nil {
+				log.Error(err, "could not provide globals")
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			for k, v := range globals {
+				err = rt.GlobalObject().Set(k, v)
+				if err != nil {
+					log.Error(err, "could not provide global", "name", k)
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+				addedGlobals = append(addedGlobals, k)
+			}
+		}
 
 		// add function to send SSE
 
