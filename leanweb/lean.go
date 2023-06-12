@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/leanweb/jshandler"
 	"github.com/draganm/go-lean/leanweb/mustache"
@@ -29,7 +30,19 @@ type Lean struct {
 
 var handlerRegexp = regexp.MustCompile(`^@([A-Z]+).js$`)
 
-func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean, error) {
+type GlobalsProviders struct {
+	Generic []providers.GenericGlobalsProvider
+	Request []providers.RequestGlobalsProvider
+	Context []providers.ContextGlobalsProvider
+}
+
+func New(
+	src fs.FS,
+	root string,
+	log logr.Logger,
+	globals map[string]any,
+	globalsProviders *GlobalsProviders,
+) (*Lean, error) {
 	r := chi.NewRouter()
 
 	root = path.Clean(root)
@@ -54,13 +67,24 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 		return nil, fmt.Errorf("could not initialize require(libs): %w", err)
 	}
 
-	globalsProviders := []providers.GlobalsProvider{
+	genericGlobalsProviders := []providers.GenericGlobalsProvider{
 		require,
 	}
 
 	requestGlobalsProviders := []providers.RequestGlobalsProvider{
 		mp,
 		sse.NewProvider(),
+	}
+
+	if globalsProviders != nil {
+		genericGlobalsProviders = append(genericGlobalsProviders, globalsProviders.Generic...)
+		requestGlobalsProviders = append(requestGlobalsProviders, globalsProviders.Request...)
+		for _, cgp := range globalsProviders.Context {
+			cgp := cgp
+			requestGlobalsProviders = append(requestGlobalsProviders, func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error) {
+				return cgp(vm, r.Context())
+			})
+		}
 	}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -94,7 +118,7 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 				log, withoutPrefix,
 				string(data),
 				globals,
-				globalsProviders,
+				genericGlobalsProviders,
 				requestGlobalsProviders,
 			)
 			if err != nil {

@@ -3,11 +3,16 @@
         "draganm",
         "etag",
         "goja",
+        "httpfs",
         "jshandler",
+        "leansql",
         "leanweb",
         "logr",
+        "mattn",
+        "stretchr",
         "Submatches",
         "Uncapitalize",
-        "uncapitalizes"
-    ]
+        "uncapitalizes",
+        "vals"
+]
 }
