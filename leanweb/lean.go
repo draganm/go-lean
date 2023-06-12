@@ -14,8 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/leanweb/jshandler"
 	"github.com/draganm/go-lean/leanweb/mustache"
+	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/draganm/go-lean/leanweb/sse"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
@@ -26,10 +28,6 @@ type Lean struct {
 }
 
 var handlerRegexp = regexp.MustCompile(`^@([A-Z]+).js$`)
-
-var libRegexp = regexp.MustCompile(`^/lib/(.+).js$`)
-
-type RequestGlobalsProvider jshandler.RequestGlobalsProvider
 
 func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean, error) {
 	r := chi.NewRouter()
@@ -51,12 +49,19 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 		return nil, fmt.Errorf("could not initialize mustache: %w", err)
 	}
 
-	globalsProviders := []jshandler.RequestGlobalsProvider{
+	require, err := require.NewProvider(src, root)
+	if err != nil {
+		return nil, fmt.Errorf("could not initialize require(libs): %w", err)
+	}
+
+	globalsProviders := []providers.GlobalsProvider{
+		require,
+	}
+
+	requestGlobalsProviders := []providers.RequestGlobalsProvider{
 		mp,
 		sse.NewProvider(),
 	}
-
-	libs := map[string]string{}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -90,7 +95,7 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 				string(data),
 				globals,
 				globalsProviders,
-				libs,
+				requestGlobalsProviders,
 			)
 			if err != nil {
 				return fmt.Errorf("could not create js handler: %w", err)
@@ -110,10 +115,6 @@ func New(src fs.FS, root string, log logr.Logger, globals map[string]any) (*Lean
 			})
 
 			return nil
-		}
-
-		if libRegexp.MatchString(withoutPrefix) {
-			libs[withoutPrefix] = string(data)
 		}
 
 		t := time.Now()

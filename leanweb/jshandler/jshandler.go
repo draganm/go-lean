@@ -6,18 +6,17 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
+	"github.com/draganm/go-lean/common/providers"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
-
-type RequestGlobalsProvider func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error)
 
 func New(
 	log logr.Logger,
 	requestPath, code string,
 	globals map[string]any,
-	requestGlobalsProviders []RequestGlobalsProvider,
-	libs map[string]string,
+	globalsProviders []providers.GlobalsProvider,
+	requestGlobalsProviders []providers.RequestGlobalsProvider,
 ) (http.HandlerFunc, error) {
 
 	prog, err := goja.Compile(requestPath, code, true)
@@ -41,17 +40,18 @@ func New(
 			rt.Set(k, v)
 		}
 
-		rt.Set("require", func(libName string) (goja.Value, error) {
-			libCode, found := libs[libName]
-			if !found {
-				return nil, fmt.Errorf("%s not found", libName)
+		for _, gp := range globalsProviders {
+			globs, err := gp(rt)
+			if err != nil {
+				return nil, fmt.Errorf("could not create globals from %v: %w", gp, err)
 			}
-			return rt.RunScript(
-				libName,
-				fmt.Sprintf(`(() => { var exports = {}; var module = { exports: exports}; %s; return module.exports})()`, libCode),
-			)
-
-		})
+			for k, v := range globs {
+				err = rt.GlobalObject().Set(k, v)
+				if err != nil {
+					return nil, fmt.Errorf("could not set global %s: %w", k, err)
+				}
+			}
+		}
 
 		rt.SetFieldNameMapper(newSmartCapFieldNameMapper())
 		_, err := rt.RunProgram(prog)

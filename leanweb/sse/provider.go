@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/leanweb/jshandler"
+	"github.com/draganm/go-lean/common/providers"
 )
 
 type serverEvent struct {
@@ -15,7 +15,7 @@ type serverEvent struct {
 	Data  string
 }
 
-func NewProvider() jshandler.RequestGlobalsProvider {
+func NewProvider() providers.RequestGlobalsProvider {
 	return func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error) {
 		return map[string]any{
 			"sendServerEvents": func(nextEvent func() (*serverEvent, error)) error {

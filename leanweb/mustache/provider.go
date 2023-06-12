@@ -11,12 +11,12 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/leanweb/jshandler"
+	"github.com/draganm/go-lean/common/providers"
 )
 
 var templateRegexp = regexp.MustCompile(`^(.+).mustache$`)
 
-func NewProvider(src fs.FS, root string) (jshandler.RequestGlobalsProvider, error) {
+func NewProvider(src fs.FS, root string) (providers.RequestGlobalsProvider, error) {
 
 	templates := map[string]string{}
 
