@@ -2,7 +2,9 @@
     "cSpell.words": [
         "draganm",
         "etag",
+        "gocron",
         "goja",
+        "gojautils",
         "httpfs",
         "jshandler",
         "leansql",
@@ -14,5 +16,5 @@
         "Uncapitalize",
         "uncapitalizes",
         "vals"
-]
+    ]
 }

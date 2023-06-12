@@ -6,6 +6,7 @@ require (
 	github.com/cbroglie/mustache v1.4.0
 	github.com/dop251/goja v0.0.0-20230427124612-428fc442ff5f
 	github.com/go-chi/chi v1.5.4
+	github.com/go-co-op/gocron v1.28.3
 	github.com/go-logr/logr v1.2.4
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/mattn/go-sqlite3 v1.14.17
@@ -20,7 +21,8 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

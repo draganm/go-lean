@@ -7,6 +7,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/gojautils"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 )
@@ -53,7 +54,7 @@ func New(
 			}
 		}
 
-		rt.SetFieldNameMapper(newSmartCapFieldNameMapper())
+		rt.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
 		_, err := rt.RunProgram(prog)
 		if err != nil {
 			return nil, fmt.Errorf("could not eval handler script: %w", err)
