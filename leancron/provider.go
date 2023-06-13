@@ -10,12 +10,19 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/gojautils"
+	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-co-op/gocron"
 	"github.com/go-logr/logr"
 )
 
 var cronRegexp = regexp.MustCompile(`^.+.cron.js$`)
+
+type GlobalsProviders struct {
+	Generic []providers.GenericGlobalsProvider
+	Context []providers.ContextGlobalsProvider
+}
 
 func Start(
 	ctx context.Context,
@@ -24,7 +31,13 @@ func Start(
 	log logr.Logger,
 	loc *time.Location,
 	globals map[string]any,
+	globalProviders *GlobalsProviders,
 ) (err error) {
+
+	req, err := require.NewProvider(src, root)
+	if err != nil {
+		return err
+	}
 
 	scheduler := gocron.NewScheduler(loc)
 	go func() {
@@ -70,36 +83,73 @@ func Start(
 			return nil
 		}
 
-		vm := goja.New()
-		vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
+		getCronInfo := func() (*CronInfo, error) {
 
-		for k, v := range globals {
-			err = vm.GlobalObject().Set(k, v)
-			if err != nil {
-				return fmt.Errorf("could not set global %s for cron %s: %w", k, withoutPrefix, err)
+			vm := goja.New()
+			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
+
+			for k, v := range globals {
+				err = vm.GlobalObject().Set(k, v)
+				if err != nil {
+					return nil, fmt.Errorf("could not set global %s: %w", k, err)
+				}
 			}
+			allGenericProviders := []providers.GenericGlobalsProvider{req}
+			if globalProviders != nil {
+				allGenericProviders = append(allGenericProviders, globalProviders.Generic...)
+			}
+
+			for _, p := range allGenericProviders {
+				vals, err := p(vm)
+				if err != nil {
+					return nil, fmt.Errorf("could not get values from the global provider: %w", err)
+				}
+				for k, v := range vals {
+					err = vm.GlobalObject().Set(k, v)
+					if err != nil {
+						return nil, fmt.Errorf("could not set value %s on the global object: %w", k, err)
+					}
+				}
+			}
+
+			_, err = vm.RunScript(withoutPrefix, string(data))
+			if err != nil {
+				return nil, fmt.Errorf("could not run script %s: %w", withoutPrefix, err)
+			}
+
+			info := &CronInfo{}
+			err = vm.ExportTo(vm.GlobalObject(), info)
+			if err != nil {
+				return nil, fmt.Errorf("could not convert value to cron info: %w", err)
+			}
+			return info, nil
 		}
 
-		val, err := vm.RunScript(withoutPrefix, string(data))
+		ci, err := getCronInfo()
 		if err != nil {
-			return fmt.Errorf("could not run script %s: %w", withoutPrefix, err)
+			return fmt.Errorf("could not get cron info for %s: %w", withoutPrefix, err)
 		}
 
-		info := &CronInfo{}
-		err = vm.ExportTo(val, info)
-		if err != nil {
-			return fmt.Errorf("could not convert value to cron info: %w", err)
+		if ci.Schedule == "" {
+			return fmt.Errorf("cron %s does not have `schedule` set", withoutPrefix)
 		}
 
 		sch := scheduler
-		if !info.AllowParallel {
+		if !ci.AllowParallel {
 			sch = sch.SingletonMode()
 		}
 
-		sch.CronWithSeconds(info.Schedule).DoWithJobDetails(func(job gocron.Job) {
+		sch.CronWithSeconds(ci.Schedule).DoWithJobDetails(func(job gocron.Job) {
 			log := log.WithValues("cronJob", withoutPrefix)
+
+			ci, err := getCronInfo()
+			if err != nil {
+				log.Error(err, "could not get cron info")
+				return
+			}
+
 			log.Info("cron job started")
-			_, err := info.Run(nil)
+			_, err = ci.Run(nil)
 			if err != nil {
 				log.Error(err, "cron job failed")
 			}

@@ -1,7 +1,7 @@
-({
-    schedule: "* * * * * *",
-    allowParallel: true,
-    run: function() {
-        close()
-    }
-})
+const { cl } = require('/lib/util.js')
+
+schedule = "* * * * * *"
+
+function run(){
+        cl()
+}
