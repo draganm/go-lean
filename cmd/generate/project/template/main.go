@@ -12,9 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/leancron"
+	"github.com/draganm/go-lean/leanmetrics"
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -49,6 +53,12 @@ func main() {
 				Value:   ":5001",
 				EnvVars: []string{"ADDR"},
 			},
+
+			&cli.StringFlag{
+				Name:    "metrics-addr",
+				Value:   ":3001",
+				EnvVars: []string{"METRICS_ADDR"},
+			},
 		},
 		Action: func(c *cli.Context) (err error) {
 			log := zapr.NewLogger(logger)
@@ -61,11 +71,28 @@ func main() {
 
 			eg, ctx := errgroup.WithContext(c.Context)
 
+			// start web handler
 			webhandler, err := leanweb.New(leanfs, "lean/web", log, nil, &leanweb.GlobalsProviders{})
 			if err != nil {
 				return fmt.Errorf("could not start lean web: %w", err)
 			}
 			eg.Go(runHttp(ctx, log, c.String("addr"), "web", webhandler))
+
+			// start lean cron
+			err = leancron.Start(ctx, leanfs, "lean/cron", log, time.Local, map[string]any{}, &leancron.GlobalsProviders{})
+			if err != nil {
+				return fmt.Errorf("could not start lean cron: %w", err)
+			}
+
+			// start lean metrics
+			err = leanmetrics.Start(ctx, leanfs, "lean/metrics", log, map[string]any{}, []providers.GenericGlobalsProvider{})
+			if err != nil {
+				return fmt.Errorf("could not start lean metrics: %w", err)
+			}
+
+			metricsMux := &http.ServeMux{}
+			metricsMux.Handle("/metrics", promhttp.Handler())
+			eg.Go(runHttp(ctx, log, c.String("metrics-addr"), "metrics", metricsMux))
 
 			eg.Go(func() error {
 

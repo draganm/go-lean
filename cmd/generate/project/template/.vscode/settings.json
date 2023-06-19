@@ -2,9 +2,12 @@
   "cSpell.words": [
     "draganm",
     "errgroup",
+    "leancron",
     "leanfs",
+    "leanmetrics",
     "leanweb",
     "logr",
+    "promhttp",
     "urfave",
     "webhandler",
     "zapr"
