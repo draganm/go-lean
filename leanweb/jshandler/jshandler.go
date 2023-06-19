@@ -10,6 +10,8 @@ import (
 	"github.com/draganm/go-lean/gojautils"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func New(
@@ -88,6 +90,17 @@ func New(
 	rtPool.Put(canary)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		span := trace.SpanFromContext(r.Context())
+		span.AddEvent("handling http request",
+			trace.WithAttributes(
+				attribute.String("method", r.Method),
+				attribute.String("path", r.URL.RawPath),
+			),
+		)
+
+		defer span.End()
+
 		log := logr.FromContextOrDiscard(r.Context())
 		rt := rtPool.Get().(*goja.Runtime)
 		defer rtPool.Put(rt)
@@ -119,6 +132,7 @@ func New(
 		for _, gp := range requestGlobalsProviders {
 			globals, err := gp(requestPath, rt, w, r)
 			if err != nil {
+				span.RecordError(err)
 				log.Error(err, "could not provide globals")
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
@@ -126,6 +140,7 @@ func New(
 			for k, v := range globals {
 				err = rt.GlobalObject().Set(k, v)
 				if err != nil {
+					span.RecordError(err)
 					log.Error(err, "could not provide global", "name", k)
 					http.Error(w, "internal error", http.StatusInternalServerError)
 					return
@@ -136,6 +151,7 @@ func New(
 
 		_, err := fn(nil, rt.ToValue(w), rt.ToValue(r), rt.ToValue(params))
 		if err != nil {
+			span.RecordError(err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			log.Error(err, "handler error")
 			return
