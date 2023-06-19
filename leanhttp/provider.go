@@ -9,6 +9,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/providers"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type HTTPOptions struct {
@@ -24,6 +25,15 @@ type HTTPResponse struct {
 }
 
 func NewProvider(client *http.Client) providers.ContextGlobalsProvider {
+
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	newTransport := otelhttp.NewTransport(transport)
+
+	client.Transport = newTransport
 
 	return func(vm *goja.Runtime, ctx context.Context) (map[string]any, error) {
 		return map[string]any{

@@ -16,6 +16,7 @@
         "mattn",
         "mets",
         "minfo",
+        "otelhttp",
         "promauto",
         "stretchr",
         "Submatches",
