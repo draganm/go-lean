@@ -88,7 +88,7 @@ func New(
 	rtPool.Put(canary)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log := logr.FromContextOrDiscard(r.Context()).WithValues("handler", requestPath)
+		log := logr.FromContextOrDiscard(r.Context())
 		rt := rtPool.Get().(*goja.Runtime)
 		defer rtPool.Put(rt)
 		v := rt.Get("handler")

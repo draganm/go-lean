@@ -15,6 +15,25 @@ import (
 	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-co-op/gocron"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	executionDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Name: "leancron_execution_duration",
+		Help: "Execution duration of a cron job",
+	}, []string{"cron"})
+
+	executionSuccessful = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "leancron_execution_successful_count",
+		Help: "Number of successful execution of a cron job",
+	}, []string{"cron"})
+
+	executionFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "leancron_execution_failed_count",
+		Help: "Number of failed execution of a cron job",
+	}, []string{"cron"})
 )
 
 var cronRegexp = regexp.MustCompile(`^.+.cron.js$`)
@@ -52,9 +71,12 @@ func Start(
 	}()
 
 	type CronInfo struct {
-		Schedule      string
-		AllowParallel bool
-		Run           goja.Callable
+		Schedule         string
+		AllowParallel    bool
+		Run              goja.Callable
+		durationObserver prometheus.Observer
+		successCounter   prometheus.Counter
+		failureCounter   prometheus.Counter
 	}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -122,6 +144,10 @@ func Start(
 			if err != nil {
 				return nil, fmt.Errorf("could not convert value to cron info: %w", err)
 			}
+
+			info.durationObserver = executionDuration.WithLabelValues(withoutPrefix)
+			info.successCounter = executionSuccessful.WithLabelValues(withoutPrefix)
+			info.failureCounter = executionFailed.WithLabelValues(withoutPrefix)
 			return info, nil
 		}
 
@@ -148,11 +174,16 @@ func Start(
 				return
 			}
 
+			startTime := time.Now()
 			log.Info("cron job started")
 			_, err = ci.Run(nil)
+			ci.durationObserver.Observe(time.Since(startTime).Seconds())
 			if err != nil {
+				ci.failureCounter.Inc()
 				log.Error(err, "cron job failed")
+				return
 			}
+			ci.successCounter.Inc()
 			log.Info("cron job successful")
 		})
 

@@ -10,6 +10,8 @@ import (
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,5 +125,32 @@ func TestRenderToString(t *testing.T) {
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/templateToString", nil, 200)
+
+}
+
+func findMetrics(t *testing.T, name string, mt dto.MetricType) []*dto.Metric {
+	require := require.New(t)
+	families, err := prometheus.DefaultGatherer.Gather()
+	require.NoError(err)
+	for _, f := range families {
+		if *f.Name == name && *f.Type == mt {
+			return f.Metric
+		}
+	}
+	return nil
+}
+
+func TestMetrics(t *testing.T) {
+
+	require := require.New(t)
+	w, err := leanweb.New(simple, "fixtures/simple", logr.Discard(), map[string]any{}, nil)
+	require.NoError(err)
+
+	require.HTTPStatusCode(w.ServeHTTP, "GET", "/123", nil, 200)
+	durationMetrics := findMetrics(t, "leanweb_response_duration", dto.MetricType_SUMMARY)
+	require.NotEmpty(durationMetrics)
+
+	statusCounterMetrics := findMetrics(t, "leanweb_response_status_count", dto.MetricType_COUNTER)
+	require.NotEmpty(statusCounterMetrics)
 
 }
