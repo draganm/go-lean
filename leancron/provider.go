@@ -17,6 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -53,6 +54,8 @@ func Start(
 	globalProviders *GlobalsProviders,
 ) (err error) {
 
+	tracer := otel.Tracer("leancron")
+
 	req, err := require.NewProvider(src, root)
 	if err != nil {
 		return err
@@ -77,6 +80,7 @@ func Start(
 		durationObserver prometheus.Observer
 		successCounter   prometheus.Counter
 		failureCounter   prometheus.Counter
+		vm               *goja.Runtime
 	}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -105,7 +109,7 @@ func Start(
 			return nil
 		}
 
-		getCronInfo := func() (*CronInfo, error) {
+		getCronInfo := func(ctx context.Context) (*CronInfo, error) {
 
 			vm := goja.New()
 			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
@@ -117,14 +121,31 @@ func Start(
 				}
 			}
 			allGenericProviders := []providers.GenericGlobalsProvider{req}
+			allContextProviders := []providers.ContextGlobalsProvider{}
+
 			if globalProviders != nil {
 				allGenericProviders = append(allGenericProviders, globalProviders.Generic...)
+				allContextProviders = append(allContextProviders, globalProviders.Context...)
+
 			}
 
 			for _, p := range allGenericProviders {
 				vals, err := p(vm)
 				if err != nil {
 					return nil, fmt.Errorf("could not get values from the global provider: %w", err)
+				}
+				for k, v := range vals {
+					err = vm.GlobalObject().Set(k, v)
+					if err != nil {
+						return nil, fmt.Errorf("could not set value %s on the global object: %w", k, err)
+					}
+				}
+			}
+
+			for _, p := range allContextProviders {
+				vals, err := p(vm, ctx)
+				if err != nil {
+					return nil, fmt.Errorf("could not get values from the global context provider: %w", err)
 				}
 				for k, v := range vals {
 					err = vm.GlobalObject().Set(k, v)
@@ -151,7 +172,7 @@ func Start(
 			return info, nil
 		}
 
-		ci, err := getCronInfo()
+		ci, err := getCronInfo(context.Background())
 		if err != nil {
 			return fmt.Errorf("could not get cron info for %s: %w", withoutPrefix, err)
 		}
@@ -168,7 +189,10 @@ func Start(
 		sch.CronWithSeconds(ci.Schedule).DoWithJobDetails(func(job gocron.Job) {
 			log := log.WithValues("cronJob", withoutPrefix)
 
-			ci, err := getCronInfo()
+			ctx, span := tracer.Start(job.Context(), fmt.Sprintf("leancron: %s", withoutPrefix))
+			defer span.End()
+
+			ci, err := getCronInfo(ctx)
 			if err != nil {
 				log.Error(err, "could not get cron info")
 				return
@@ -181,6 +205,7 @@ func Start(
 			if err != nil {
 				ci.failureCounter.Inc()
 				log.Error(err, "cron job failed")
+				span.RecordError(err)
 				return
 			}
 			ci.successCounter.Inc()
