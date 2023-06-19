@@ -22,11 +22,25 @@ import (
 	"github.com/draganm/go-lean/leanweb/sse"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type Lean struct {
 	http.Handler
 }
+
+var (
+	responseDurations = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Name: "leanweb_response_duration",
+		Help: "HTTP Response Duration",
+	}, []string{"method", "path"})
+
+	responseStatusCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "leanweb_response_status_count",
+		Help: "HTTP Status per response",
+	}, []string{"status", "method", "path"})
+)
 
 var handlerRegexp = regexp.MustCompile(`^@([A-Z]+).js$`)
 
@@ -134,8 +148,32 @@ func New(
 
 			r.MethodFunc(method, path.Dir(withoutPrefix), func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
+				log := log.WithValues("method", method, "handlerPath", path.Dir(withoutPrefix))
 				r = r.WithContext(logr.NewContext(ctx, log))
-				handler(w, r)
+				startTime := time.Now()
+				crw := newCapturingResponseWriter(w)
+
+				defer func() {
+					duration := time.Since(startTime)
+					durationMetric, err := responseDurations.GetMetricWithLabelValues(r.Method, path.Dir(withoutPrefix))
+					if err != nil {
+						log.Error(err, "could not find duration metric")
+
+					} else {
+						durationMetric.Observe(duration.Seconds())
+					}
+
+					statusString := fmt.Sprintf("%d", crw.status)
+					statusMetric, err := responseStatusCount.GetMetricWithLabelValues(statusString, r.Method, path.Dir(withoutPrefix))
+					if err != nil {
+						log.Error(err, "could not find status metric")
+
+					} else {
+						statusMetric.Add(1)
+					}
+					//  crw.status
+				}()
+				handler(crw, r)
 			})
 
 			return nil
