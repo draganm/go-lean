@@ -14,6 +14,7 @@ import (
 
 	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/leancron"
+	"github.com/draganm/go-lean/leanhttp"
 	"github.com/draganm/go-lean/leanmetrics"
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-logr/logr"
@@ -71,15 +72,21 @@ func main() {
 
 			eg, ctx := errgroup.WithContext(c.Context)
 
+			httpProvider := leanhttp.NewProvider(http.DefaultClient)
+
 			// start web handler
-			webhandler, err := leanweb.New(leanfs, "lean/web", log, nil, &leanweb.GlobalsProviders{})
+			webhandler, err := leanweb.New(leanfs, "lean/web", log, nil, &leanweb.GlobalsProviders{
+				Context: []providers.ContextGlobalsProvider{httpProvider},
+			})
 			if err != nil {
 				return fmt.Errorf("could not start lean web: %w", err)
 			}
 			eg.Go(runHttp(ctx, log, c.String("addr"), "web", webhandler))
 
 			// start lean cron
-			err = leancron.Start(ctx, leanfs, "lean/cron", log, time.Local, map[string]any{}, &leancron.GlobalsProviders{})
+			err = leancron.Start(ctx, leanfs, "lean/cron", log, time.Local, map[string]any{}, &leancron.GlobalsProviders{
+				Context: []providers.ContextGlobalsProvider{httpProvider},
+			})
 			if err != nil {
 				return fmt.Errorf("could not start lean cron: %w", err)
 			}
