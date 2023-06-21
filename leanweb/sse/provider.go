@@ -52,9 +52,8 @@ func NewProvider() providers.RequestGlobalsProvider {
 						return err
 					}
 
-					if f, ok := w.(http.Flusher); ok {
-						f.Flush()
-					}
+					rc := http.NewResponseController(w)
+					rc.Flush()
 
 					return nil
 
