@@ -1,6 +1,7 @@
 package jshandler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -13,6 +14,15 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+type statusError struct {
+	code    int
+	message string
+}
+
+func (s *statusError) Error() string {
+	return fmt.Sprintf("%d: %s", s.code, s.message)
+}
 
 func New(
 	log logr.Logger,
@@ -55,6 +65,10 @@ func New(
 				}
 			}
 		}
+
+		rt.GlobalObject().Set("returnStatus", func(code int, message string) error {
+			return &statusError{code: code, message: message}
+		})
 
 		rt.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
 		_, err := rt.RunProgram(prog)
@@ -150,6 +164,23 @@ func New(
 		}
 
 		_, err := fn(nil, rt.ToValue(w), rt.ToValue(r), rt.ToValue(params))
+
+		// check for statusError exception being thrown
+		exc := &goja.Exception{}
+		if errors.As(err, &exc) {
+			exported := exc.Value().Export()
+			m, ok := exported.(map[string]any)
+			if ok {
+				v, found := m["value"]
+				if found && v != nil {
+					se, ok := v.(*statusError)
+					if ok {
+						http.Error(w, se.message, se.code)
+						return
+					}
+				}
+			}
+		}
 		if err != nil {
 			span.RecordError(err)
 			http.Error(w, "internal error", http.StatusInternalServerError)

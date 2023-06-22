@@ -154,3 +154,12 @@ func TestMetrics(t *testing.T) {
 	require.NotEmpty(statusCounterMetrics)
 
 }
+
+func TestReturningStatus(t *testing.T) {
+	require := require.New(t)
+	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{}, nil)
+	require.NoError(err)
+
+	require.HTTPStatusCode(w.ServeHTTP, "GET", "/status", nil, 401)
+
+}
