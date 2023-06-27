@@ -14,8 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/leanweb/jshandler"
 	"github.com/draganm/go-lean/leanweb/mustache"
 	"github.com/draganm/go-lean/leanweb/require"
@@ -44,18 +43,11 @@ var (
 
 var handlerRegexp = regexp.MustCompile(`^@([A-Z]+).js$`)
 
-type GlobalsProviders struct {
-	Generic []providers.GenericGlobalsProvider
-	Request []providers.RequestGlobalsProvider
-	Context []providers.ContextGlobalsProvider
-}
-
 func New(
 	src fs.FS,
 	root string,
 	log logr.Logger,
-	globals map[string]any,
-	globalsProviders *GlobalsProviders,
+	gl globals.Globals,
 ) (*Lean, error) {
 	r := chi.NewRouter()
 
@@ -81,24 +73,13 @@ func New(
 		return nil, fmt.Errorf("could not initialize require(libs): %w", err)
 	}
 
-	genericGlobalsProviders := []providers.GenericGlobalsProvider{
-		require,
-	}
-
-	requestGlobalsProviders := []providers.RequestGlobalsProvider{
-		mp,
-		sse.NewProvider(),
-	}
-
-	if globalsProviders != nil {
-		genericGlobalsProviders = append(genericGlobalsProviders, globalsProviders.Generic...)
-		requestGlobalsProviders = append(requestGlobalsProviders, globalsProviders.Request...)
-		for _, cgp := range globalsProviders.Context {
-			cgp := cgp
-			requestGlobalsProviders = append(requestGlobalsProviders, func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error) {
-				return cgp(vm, r.Context())
-			})
-		}
+	gl, err = gl.Merge(globals.Globals{
+		"require":          require,
+		"mustache":         mp,
+		"sendServerEvents": sse.NewProvider(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not merge global values: %w", err)
 	}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -131,9 +112,7 @@ func New(
 			handler, err := jshandler.New(
 				log, withoutPrefix,
 				string(data),
-				globals,
-				genericGlobalsProviders,
-				requestGlobalsProviders,
+				gl,
 			)
 			if err != nil {
 				return fmt.Errorf("could not create js handler: %w", err)

@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -24,7 +23,7 @@ type HTTPResponse struct {
 	Header     http.Header
 }
 
-func NewProvider(client *http.Client) providers.ContextGlobalsProvider {
+func NewProvider(client *http.Client) globals.ContextGlobalProvider {
 
 	transport := client.Transport
 	if transport == nil {
@@ -35,9 +34,10 @@ func NewProvider(client *http.Client) providers.ContextGlobalsProvider {
 
 	client.Transport = newTransport
 
-	return func(vm *goja.Runtime, ctx context.Context) (map[string]any, error) {
+	return globals.ContextGlobalProvider(func(ctx context.Context) (any, error) {
+
 		return map[string]any{
-			"requestHttp": func(method, url string, opts HTTPOptions) (*HTTPResponse, error) {
+			"request": func(method, url string, opts HTTPOptions) (*HTTPResponse, error) {
 				req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(opts.Body))
 				if err != nil {
 					return nil, fmt.Errorf("could not create request: %w", err)
@@ -76,5 +76,5 @@ func NewProvider(client *http.Client) providers.ContextGlobalsProvider {
 
 			},
 		}, nil
-	}
+	})
 }

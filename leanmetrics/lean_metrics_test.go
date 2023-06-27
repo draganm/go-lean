@@ -32,7 +32,7 @@ func TestMetricsProviders(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := leanmetrics.Start(ctx, simple, "fixtures", testr.New(t), map[string]any{}, nil)
+	err := leanmetrics.Start(ctx, simple, "fixtures", testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	metrics := findMetrics(t, "test", dto.MetricType_COUNTER)

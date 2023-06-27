@@ -1,4 +1,4 @@
 function handler(w,r) {
-    const response = requestHttp("GET",testServerUrl)
+    const response = http.request("GET",testServerUrl)
     w.write(response.body)
 }

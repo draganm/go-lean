@@ -34,7 +34,6 @@ func TestCron(t *testing.T) {
 		map[string]any{
 			"close": func() { close(ch) },
 		},
-		nil,
 	)
 
 	require.NoError(err)

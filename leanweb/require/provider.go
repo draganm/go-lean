@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 )
 
 var libRegexp = regexp.MustCompile(`^/lib/(.+).js$`)
 
-func NewProvider(src fs.FS, root string) (providers.GenericGlobalsProvider, error) {
+func NewProvider(src fs.FS, root string) (globals.VMGlobalProvider, error) {
 
 	libs := map[string]string{}
 
@@ -50,19 +50,17 @@ func NewProvider(src fs.FS, root string) (providers.GenericGlobalsProvider, erro
 		return nil, fmt.Errorf("could not get libs: %w", err)
 	}
 
-	return func(rt *goja.Runtime) (map[string]any, error) {
-		return map[string]any{
-			"require": func(libName string) (goja.Value, error) {
-				libCode, found := libs[libName]
-				if !found {
-					return nil, fmt.Errorf("%s not found", libName)
-				}
-				return rt.RunScript(
-					libName,
-					fmt.Sprintf(`(() => { var exports = {}; var module = { exports: exports}; %s; return module.exports})()`, libCode),
-				)
+	return func(rt *goja.Runtime) (any, error) {
+		return func(libName string) (goja.Value, error) {
+			libCode, found := libs[libName]
+			if !found {
+				return nil, fmt.Errorf("%s not found", libName)
+			}
+			return rt.RunScript(
+				libName,
+				fmt.Sprintf(`(() => { var exports = {}; var module = { exports: exports}; %s; return module.exports})()`, libCode),
+			)
 
-			},
 		}, nil
 	}, nil
 

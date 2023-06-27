@@ -11,12 +11,12 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 )
 
 var templateRegexp = regexp.MustCompile(`^(.+).mustache$`)
 
-func NewProvider(src fs.FS, root string) (providers.RequestGlobalsProvider, error) {
+func NewProvider(src fs.FS, root string) (globals.RequestGlobalsProvider, error) {
 
 	templates := map[string]string{}
 
@@ -64,7 +64,7 @@ func NewProvider(src fs.FS, root string) (providers.RequestGlobalsProvider, erro
 		mu:            &sync.Mutex{},
 	}
 
-	return func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (map[string]any, error) {
+	return func(handlerPath string, vm *goja.Runtime, w http.ResponseWriter, r *http.Request) (any, error) {
 
 		tc := tcf.getTemplateCacheForPath(path.Dir(handlerPath))
 		return map[string]any{

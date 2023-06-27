@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/gojautils"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
@@ -27,43 +27,36 @@ func (s *statusError) Error() string {
 func New(
 	log logr.Logger,
 	requestPath, code string,
-	globals map[string]any,
-	globalsProviders []providers.GenericGlobalsProvider,
-	requestGlobalsProviders []providers.RequestGlobalsProvider,
+	gl map[string]any,
 ) (http.HandlerFunc, error) {
 
 	prog, err := goja.Compile(requestPath, code, true)
 	if err != nil {
 		return nil, fmt.Errorf("could not compile %s: %w", requestPath, err)
 	}
+	requestTimeGlobals := globals.Globals{}
+
+	for k, v := range gl {
+		if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {
+
+			continue
+		}
+		requestTimeGlobals[k] = v
+	}
 
 	createInstance := func() (*goja.Runtime, error) {
 		rt := goja.New()
 
-		for k, v := range globals {
-			vf, isRuntimeValueFactory := v.(func(rt *goja.Runtime) (any, error))
-			if isRuntimeValueFactory {
-				var err error
-				v, err = vf(rt)
+		for k, v := range gl {
+			if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {
+				err = globals.ProvideVMGlobalValue(rt, k, v)
 				if err != nil {
-					return nil, fmt.Errorf("runtime value creation for %s failed: %w", k, err)
+					return nil, err
 				}
+				continue
 			}
+			requestTimeGlobals[k] = v
 
-			rt.Set(k, v)
-		}
-
-		for _, gp := range globalsProviders {
-			globs, err := gp(rt)
-			if err != nil {
-				return nil, fmt.Errorf("could not create globals from %v: %w", gp, err)
-			}
-			for k, v := range globs {
-				err = rt.GlobalObject().Set(k, v)
-				if err != nil {
-					return nil, fmt.Errorf("could not set global %s: %w", k, err)
-				}
-			}
 		}
 
 		rt.GlobalObject().Set("returnStatus", func(code int, message string) error {
@@ -118,6 +111,16 @@ func New(
 		log := logr.FromContextOrDiscard(r.Context())
 		rt := rtPool.Get().(*goja.Runtime)
 		defer rtPool.Put(rt)
+
+		for k, v := range requestTimeGlobals {
+			err = globals.ProvideRequestGlobalValue(requestPath, rt, w, r, k, v)
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				log.Error(err, "could set request time globals")
+				return
+			}
+		}
+
 		v := rt.Get("handler")
 
 		routeContext := chi.RouteContext(r.Context())
@@ -134,34 +137,12 @@ func New(
 			return
 		}
 
-		addedGlobals := []string{}
-
 		// remove globals at the end of the request before it's returned to the pool
 		defer func() {
-			for _, g := range addedGlobals {
+			for g := range requestTimeGlobals {
 				rt.GlobalObject().Delete(g)
 			}
 		}()
-
-		for _, gp := range requestGlobalsProviders {
-			globals, err := gp(requestPath, rt, w, r)
-			if err != nil {
-				span.RecordError(err)
-				log.Error(err, "could not provide globals")
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-			for k, v := range globals {
-				err = rt.GlobalObject().Set(k, v)
-				if err != nil {
-					span.RecordError(err)
-					log.Error(err, "could not provide global", "name", k)
-					http.Error(w, "internal error", http.StatusInternalServerError)
-					return
-				}
-				addedGlobals = append(addedGlobals, k)
-			}
-		}
 
 		_, err := fn(nil, rt.ToValue(w), rt.ToValue(r), rt.ToValue(params))
 

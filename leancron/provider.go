@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/gojautils"
 	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-co-op/gocron"
@@ -39,24 +39,23 @@ var (
 
 var cronRegexp = regexp.MustCompile(`^.+.cron.js$`)
 
-type GlobalsProviders struct {
-	Generic []providers.GenericGlobalsProvider
-	Context []providers.ContextGlobalsProvider
-}
-
 func Start(
 	ctx context.Context,
 	src fs.FS,
 	root string,
 	log logr.Logger,
 	loc *time.Location,
-	globals map[string]any,
-	globalProviders *GlobalsProviders,
+	gl globals.Globals,
 ) (err error) {
 
 	tracer := otel.Tracer("leancron")
 
 	req, err := require.NewProvider(src, root)
+	if err != nil {
+		return err
+	}
+
+	gl, err = gl.Merge(globals.Globals{"require": req})
 	if err != nil {
 		return err
 	}
@@ -114,47 +113,12 @@ func Start(
 			vm := goja.New()
 			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
 
-			for k, v := range globals {
-				err = vm.GlobalObject().Set(k, v)
+			for k, v := range gl {
+				err = globals.ProvideContextAndVMGlobalValue(ctx, vm, k, v)
 				if err != nil {
 					return nil, fmt.Errorf("could not set global %s: %w", k, err)
 				}
 			}
-			allGenericProviders := []providers.GenericGlobalsProvider{req}
-			allContextProviders := []providers.ContextGlobalsProvider{}
-
-			if globalProviders != nil {
-				allGenericProviders = append(allGenericProviders, globalProviders.Generic...)
-				allContextProviders = append(allContextProviders, globalProviders.Context...)
-
-			}
-
-			for _, p := range allGenericProviders {
-				vals, err := p(vm)
-				if err != nil {
-					return nil, fmt.Errorf("could not get values from the global provider: %w", err)
-				}
-				for k, v := range vals {
-					err = vm.GlobalObject().Set(k, v)
-					if err != nil {
-						return nil, fmt.Errorf("could not set value %s on the global object: %w", k, err)
-					}
-				}
-			}
-
-			for _, p := range allContextProviders {
-				vals, err := p(vm, ctx)
-				if err != nil {
-					return nil, fmt.Errorf("could not get values from the global context provider: %w", err)
-				}
-				for k, v := range vals {
-					err = vm.GlobalObject().Set(k, v)
-					if err != nil {
-						return nil, fmt.Errorf("could not set value %s on the global object: %w", k, err)
-					}
-				}
-			}
-
 			_, err = vm.RunScript(withoutPrefix, string(data))
 			if err != nil {
 				return nil, fmt.Errorf("could not run script %s: %w", withoutPrefix, err)
