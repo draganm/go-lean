@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/leansql"
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-logr/logr/testr"
@@ -24,7 +23,7 @@ import (
 //go:embed fixtures
 var simple embed.FS
 
-func XTestQuery(t *testing.T) {
+func TestQuery(t *testing.T) {
 
 	require := require.New(t)
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name()))
@@ -94,9 +93,7 @@ func TestWithWeb(t *testing.T) {
 		require.NoError(err)
 	}
 
-	lw, err := leanweb.New(simple, "fixtures/html", testr.New(t), map[string]any{}, &leanweb.GlobalsProviders{
-		Context: []providers.ContextGlobalsProvider{leansql.NewProvider(db, "sql")},
-	})
+	lw, err := leanweb.New(simple, "fixtures/html", testr.New(t), map[string]any{"sql": leansql.NewProvider(db)})
 
 	require.NoError(err)
 

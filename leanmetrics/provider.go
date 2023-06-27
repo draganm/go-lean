@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/gojautils"
 	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-logr/logr"
@@ -98,8 +98,7 @@ func Start(
 	src fs.FS,
 	root string,
 	log logr.Logger,
-	globals map[string]any,
-	globalProviders []providers.GenericGlobalsProvider,
+	gl globals.Globals,
 ) (err error) {
 	c := collector{}
 
@@ -137,28 +136,19 @@ func Start(
 		if len(handlerSubmatches) == 3 {
 			vm := goja.New()
 			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
-			for k, v := range globals {
-				err = vm.GlobalObject().Set(k, v)
-				if err != nil {
-					return fmt.Errorf("could not set global %s: %w", k, err)
-				}
-			}
-			allGenericProviders := append([]providers.GenericGlobalsProvider{req}, globalProviders...)
 
-			for _, p := range allGenericProviders {
-				vals, err := p(vm)
-				if err != nil {
-					return fmt.Errorf("could not get values from the global provider: %w", err)
-				}
-				for k, v := range vals {
-					err = vm.GlobalObject().Set(k, v)
-					if err != nil {
-						return fmt.Errorf("could not set value %s on the global object: %w", k, err)
-					}
-				}
+			globs, err := gl.Merge(globals.Globals{"require": req})
+			if err != nil {
+				return err
 			}
 
-			_, err := vm.RunScript(withoutPrefix, string(data))
+			for k, v := range globs {
+				err = globals.ProvideVMGlobalValue(vm, k, v)
+				if err != nil {
+					return err
+				}
+			}
+			_, err = vm.RunScript(withoutPrefix, string(data))
 			if err != nil {
 				return fmt.Errorf("could not start metric handler %s: %w", withoutPrefix, err)
 			}

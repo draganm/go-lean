@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/draganm/go-lean/common/providers"
 	"github.com/draganm/go-lean/leanhttp"
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-chi/chi"
@@ -32,8 +31,7 @@ func TestLeanHTTP(t *testing.T) {
 
 	wh, err := leanweb.New(simple, "fixtures/html", testr.New(t), map[string]any{
 		"testServerUrl": server.URL,
-	}, &leanweb.GlobalsProviders{
-		Context: []providers.ContextGlobalsProvider{httpProvider},
+		"http":          httpProvider,
 	})
 
 	require.NoError(err)

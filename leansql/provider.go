@@ -5,14 +5,12 @@ import (
 	"database/sql"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 )
 
-func NewProvider(db *sql.DB, name string) providers.ContextGlobalsProvider {
+func NewProvider(db *sql.DB) globals.ContextAndVMGlobalProvider {
 
-	return func(vm *goja.Runtime, ctx context.Context) (map[string]any, error) {
-		return map[string]any{
-			name: New(db, vm, ctx),
-		}, nil
+	return func(vm *goja.Runtime, ctx context.Context) (any, error) {
+		return New(db, vm, ctx), nil
 	}
 }
