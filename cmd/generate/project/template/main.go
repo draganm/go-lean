@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/draganm/go-lean/common/providers"
+	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/leancron"
 	"github.com/draganm/go-lean/leanhttp"
 	"github.com/draganm/go-lean/leanmetrics"
@@ -75,24 +75,20 @@ func main() {
 			httpProvider := leanhttp.NewProvider(http.DefaultClient)
 
 			// start web handler
-			webhandler, err := leanweb.New(leanfs, "lean/web", log, nil, &leanweb.GlobalsProviders{
-				Context: []providers.ContextGlobalsProvider{httpProvider},
-			})
+			webhandler, err := leanweb.New(leanfs, "lean/web", log, globals.Globals{"http": httpProvider})
 			if err != nil {
 				return fmt.Errorf("could not start lean web: %w", err)
 			}
 			eg.Go(runHttp(ctx, log, c.String("addr"), "web", webhandler))
 
 			// start lean cron
-			err = leancron.Start(ctx, leanfs, "lean/cron", log, time.Local, map[string]any{}, &leancron.GlobalsProviders{
-				Context: []providers.ContextGlobalsProvider{httpProvider},
-			})
+			err = leancron.Start(ctx, leanfs, "lean/cron", log, time.Local, globals.Globals{"http": httpProvider})
 			if err != nil {
 				return fmt.Errorf("could not start lean cron: %w", err)
 			}
 
 			// start lean metrics
-			err = leanmetrics.Start(ctx, leanfs, "lean/metrics", log, map[string]any{}, []providers.GenericGlobalsProvider{})
+			err = leanmetrics.Start(ctx, leanfs, "lean/metrics", log, map[string]any{})
 			if err != nil {
 				return fmt.Errorf("could not start lean metrics: %w", err)
 			}

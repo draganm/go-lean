@@ -3,7 +3,7 @@ module github.com/draganm/template
 go 1.20
 
 require (
-	github.com/draganm/go-lean v0.0.4
+	github.com/draganm/go-lean v0.1.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.4
 	github.com/prometheus/client_golang v1.15.1
