@@ -1,3 +1,3 @@
-function handler(w,r) {
+function handler(w, r) {
     returnStatus(401)
 }
