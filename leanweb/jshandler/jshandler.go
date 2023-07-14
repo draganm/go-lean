@@ -46,6 +46,7 @@ func New(
 
 	createInstance := func() (*goja.Runtime, error) {
 		rt := goja.New()
+		rt.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
 
 		for k, v := range gl {
 			if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {
@@ -63,7 +64,6 @@ func New(
 			return &statusError{code: code, message: message}
 		})
 
-		rt.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
 		_, err := rt.RunProgram(prog)
 		if err != nil {
 			return nil, fmt.Errorf("could not eval handler script: %w", err)
@@ -130,6 +130,13 @@ func New(
 		for i, pn := range urlParams.Keys {
 			params[pn] = urlParams.Values[i]
 		}
+
+		err = rt.GlobalObject().Set("log", log.WithValues("params", params))
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			log.Error(err, "could set log global")
+		}
+
 		fn, isFunction := goja.AssertFunction(v)
 		if !isFunction {
 			http.Error(w, "internal error", http.StatusInternalServerError)
