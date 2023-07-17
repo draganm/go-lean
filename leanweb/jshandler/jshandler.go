@@ -11,6 +11,8 @@ import (
 	"github.com/draganm/go-lean/gojautils"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,6 +25,8 @@ type statusError struct {
 func (s *statusError) Error() string {
 	return fmt.Sprintf("%d: %s", s.code, s.message)
 }
+
+var tracer = otel.Tracer("github.com/draganm/go-lean/leanweb")
 
 func New(
 	log logr.Logger,
@@ -96,17 +100,15 @@ func New(
 
 	rtPool.Put(canary)
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		span := trace.SpanFromContext(r.Context())
-		span.AddEvent("handling http request",
-			trace.WithAttributes(
-				attribute.String("method", r.Method),
-				attribute.String("path", r.URL.RawPath),
-			),
+		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s %s", r.Method, requestPath), trace.WithAttributes(
+			attribute.String("method", r.Method),
+			attribute.String("path", r.URL.RawPath),
+		),
 		)
-
 		defer span.End()
+		r = r.WithContext(ctx)
 
 		log := logr.FromContextOrDiscard(r.Context())
 		rt := rtPool.Get().(*goja.Runtime)
@@ -176,5 +178,5 @@ func New(
 			return
 		}
 
-	}), nil
+	}), "golean").ServeHTTP, nil
 }
