@@ -1,6 +1,7 @@
 package mustache
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"path"
@@ -8,13 +9,24 @@ import (
 	"sync"
 
 	"github.com/cbroglie/mustache"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func renderTemplateForScope(tc *scopedTemplateCache, w io.Writer) func(name string, data interface{}) error {
+func renderTemplateForScope(ctx context.Context, tc *scopedTemplateCache, w io.Writer) func(name string, data interface{}) error {
 
 	return func(name string, data any) error {
+		_, span := tracer.Start(ctx, fmt.Sprintf("mustache.RenderTemplate %s", name),
+			trace.WithAttributes(
+				attribute.String("template", name),
+			),
+		)
+
+		defer span.End()
+
 		template, err := tc.getTemplate(name)
 		if err != nil {
+			span.RecordError(err)
 			return fmt.Errorf("could not get/parse template %s in scope %s: %w", name, tc.sp.scope, err)
 		}
 
@@ -23,11 +35,19 @@ func renderTemplateForScope(tc *scopedTemplateCache, w io.Writer) func(name stri
 
 }
 
-func renderTemplateForScopeToString(tc *scopedTemplateCache) func(name string, data interface{}) (string, error) {
+func renderTemplateForScopeToString(ctx context.Context, tc *scopedTemplateCache) func(name string, data interface{}) (string, error) {
 
 	return func(name string, data any) (string, error) {
+		_, span := tracer.Start(ctx, fmt.Sprintf("mustache.RenderTemplateToString %s", name),
+			trace.WithAttributes(
+				attribute.String("template", name),
+			),
+		)
+
+		defer span.End()
 		template, err := tc.getTemplate(name)
 		if err != nil {
+			span.RecordError(err)
 			return "", fmt.Errorf("could not get/parse template %s in scope %s: %w", name, tc.sp.scope, err)
 		}
 

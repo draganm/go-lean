@@ -26,7 +26,7 @@ func (s *statusError) Error() string {
 	return fmt.Sprintf("%d: %s", s.code, s.message)
 }
 
-var tracer = otel.Tracer("github.com/draganm/go-lean/leanweb")
+var tracer = otel.Tracer("github.com/draganm/go-lean/leanweb/jshandler")
 
 func New(
 	log logr.Logger,
@@ -102,10 +102,11 @@ func New(
 
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s %s", r.Method, requestPath), trace.WithAttributes(
-			attribute.String("method", r.Method),
-			attribute.String("path", r.URL.RawPath),
-		),
+		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s %s", r.Method, requestPath),
+			trace.WithAttributes(
+				attribute.String("method", r.Method),
+				attribute.String("path", r.URL.RawPath),
+			),
 		)
 		defer span.End()
 		r = r.WithContext(ctx)

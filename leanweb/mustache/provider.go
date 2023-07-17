@@ -12,7 +12,10 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/draganm/go-lean/leanweb/mustache")
 
 var templateRegexp = regexp.MustCompile(`^(.+).mustache$`)
 
@@ -68,8 +71,8 @@ func NewProvider(src fs.FS, root string) (globals.RequestGlobalsProvider, error)
 
 		tc := tcf.getTemplateCacheForPath(path.Dir(handlerPath))
 		return map[string]any{
-			"render":         renderTemplateForScope(tc, w),
-			"renderToString": renderTemplateForScopeToString(tc),
+			"render":         renderTemplateForScope(r.Context(), tc, w),
+			"renderToString": renderTemplateForScopeToString(r.Context(), tc),
 		}, nil
 	}, nil
 
