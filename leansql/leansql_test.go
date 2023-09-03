@@ -56,7 +56,7 @@ func TestQuery(t *testing.T) {
 	vm.Set("print", func(s *string) { fmt.Println(*s) })
 
 	res, err := vm.RunString(`
-		sql.Query("select * from blog order by id",[],(x) => Array.from(x, ([a]) => a))
+		sql.query("select * from blog order by id",[],(x) => Array.from(x, ([a]) => a))
 	`)
 	require.NoError(err)
 

@@ -8,7 +8,6 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
-	"github.com/draganm/go-lean/gojautils"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -50,7 +49,7 @@ func New(
 
 	createInstance := func() (*goja.Runtime, error) {
 		rt := goja.New()
-		rt.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
+		rt.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
 
 		for k, v := range gl {
 			if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {

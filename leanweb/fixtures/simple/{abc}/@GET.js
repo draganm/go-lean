@@ -1,4 +1,4 @@
 function handler(w, r) {
-  log.info("foo", "bar", "baz")
-  w.write('foo')
+  log.Info("foo", "bar", "baz")
+  w.Write('foo')
 }

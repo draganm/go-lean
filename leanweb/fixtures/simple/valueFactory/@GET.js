@@ -1,3 +1,3 @@
 function handler(w, r) {
-    w.write(`${myValue}`)
+    w.Write(`${myValue}`)
 }

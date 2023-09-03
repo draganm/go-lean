@@ -12,15 +12,15 @@ import (
 )
 
 type HTTPOptions struct {
-	Body   string
-	Header map[string]string
+	Body   string            `lean:"body"`
+	Header map[string]string `lean:"header"`
 }
 
 type HTTPResponse struct {
-	Status     string
-	StatusCode int
-	Body       string
-	Header     http.Header
+	Status     string      `lean:"status"`
+	StatusCode int         `lean:"statusCode"`
+	Body       string      `lean:"body"`
+	Header     http.Header `lean:"header"`
 }
 
 func NewProvider(client *http.Client) globals.ContextGlobalProvider {

@@ -15,8 +15,12 @@ type LeanSQL struct {
 	ctx context.Context
 }
 
-func New(db *sql.DB, vm *goja.Runtime, ctx context.Context) *LeanSQL {
-	return &LeanSQL{db: db, vm: vm, ctx: ctx}
+func New(db *sql.DB, vm *goja.Runtime, ctx context.Context) map[string]any {
+	ls := &LeanSQL{db: db, vm: vm, ctx: ctx}
+
+	return map[string]any{
+		"query": ls.Query,
+	}
 }
 
 func (ls *LeanSQL) Query(q string, args []any, fn goja.Callable) (goja.Value, error) {
