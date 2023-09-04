@@ -12,7 +12,6 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
-	"github.com/draganm/go-lean/gojautils"
 	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,10 +37,10 @@ func (c collector) Collect(mc chan<- prometheus.Metric) {
 
 type metricInfo struct {
 	metricType     string
-	ConstantLabels prometheus.Labels
+	ConstantLabels prometheus.Labels `lean:"constantLabels"`
 	// VariableLabels []string
-	Description string
-	Collect     goja.Callable
+	Description string        `lean:"description"`
+	Collect     goja.Callable `lean:"collect"`
 
 	name string
 	vt   prometheus.ValueType
@@ -135,7 +134,7 @@ func Start(
 
 		if len(handlerSubmatches) == 3 {
 			vm := goja.New()
-			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
+			vm.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
 
 			globs, err := gl.Merge(globals.Globals{"require": req})
 			if err != nil {

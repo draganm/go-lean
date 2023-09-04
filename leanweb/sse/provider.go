@@ -10,9 +10,9 @@ import (
 )
 
 type serverEvent struct {
-	ID    string
-	Event string
-	Data  string
+	ID    string `lean:"id"`
+	Event string `lean:"event"`
+	Data  string `lean:"data"`
 }
 
 func NewProvider() globals.RequestGlobalsProvider {

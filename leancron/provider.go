@@ -11,7 +11,6 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
-	"github.com/draganm/go-lean/gojautils"
 	"github.com/draganm/go-lean/leanweb/require"
 	"github.com/go-co-op/gocron"
 	"github.com/go-logr/logr"
@@ -73,13 +72,12 @@ func Start(
 	}()
 
 	type CronInfo struct {
-		Schedule         string
-		AllowParallel    bool
-		Run              goja.Callable
+		Schedule         string        `lean:"schedule"`
+		AllowParallel    bool          `lean:"allowParallel"`
+		Run              goja.Callable `lean:"run"`
 		durationObserver prometheus.Observer
 		successCounter   prometheus.Counter
 		failureCounter   prometheus.Counter
-		vm               *goja.Runtime
 	}
 
 	err = fs.WalkDir(src, root, func(pth string, d fs.DirEntry, err error) error {
@@ -111,7 +109,7 @@ func Start(
 		getCronInfo := func(ctx context.Context) (*CronInfo, error) {
 
 			vm := goja.New()
-			vm.SetFieldNameMapper(gojautils.SmartCapFieldNameMapper)
+			vm.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
 
 			for k, v := range gl {
 				err = globals.ProvideContextAndVMGlobalValue(ctx, vm, k, v)
