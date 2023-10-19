@@ -74,9 +74,8 @@ func New(
 	}
 
 	gl, err = gl.Merge(globals.Globals{
-		"require":          require,
 		"mustache":         mp,
-		"sendServerEvents": sse.NewProvider(),
+		"sendServerEvents": sse.SSEProvider,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not merge global values: %w", err)
@@ -113,6 +112,7 @@ func New(
 				log, withoutPrefix,
 				string(data),
 				gl,
+				require,
 			)
 			if err != nil {
 				return fmt.Errorf("could not create js handler: %w", err)

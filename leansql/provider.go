@@ -8,9 +8,8 @@ import (
 	"github.com/draganm/go-lean/common/globals"
 )
 
-func NewProvider(db *sql.DB) globals.ContextAndVMGlobalProvider {
-
-	return func(vm *goja.Runtime, ctx context.Context) (any, error) {
-		return New(db, vm, ctx), nil
+func NewProvider(db *sql.DB) func(vm *goja.Runtime, ctx context.Context) globals.Values {
+	return func(vm *goja.Runtime, ctx context.Context) globals.Values {
+		return New(db, vm, ctx)
 	}
 }

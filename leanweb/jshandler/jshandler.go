@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
+	"github.com/draganm/go-lean/leanweb/types"
 	"github.com/go-chi/chi"
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -29,45 +30,30 @@ var tracer = otel.Tracer("github.com/draganm/go-lean/leanweb/jshandler")
 
 func New(
 	log logr.Logger,
-	requestPath, code string,
-	gl map[string]any,
+	requestPath string,
+	code string,
+	gl globals.Globals,
+	require func(rt *goja.Runtime) func(libName string) (goja.Value, error),
 ) (http.HandlerFunc, error) {
 
 	prog, err := goja.Compile(requestPath, code, true)
 	if err != nil {
 		return nil, fmt.Errorf("could not compile %s: %w", requestPath, err)
 	}
-	requestTimeGlobals := globals.Globals{}
-
-	for k, v := range gl {
-		if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {
-
-			continue
-		}
-		requestTimeGlobals[k] = v
-	}
 
 	createInstance := func() (*goja.Runtime, error) {
 		rt := goja.New()
 		rt.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
 
-		for k, v := range gl {
-			if globals.IsVMGlobalProvider(v) || globals.IsPlainValue(v) {
-				err = globals.ProvideVMGlobalValue(rt, k, v)
-				if err != nil {
-					return nil, err
-				}
-				continue
-			}
-			requestTimeGlobals[k] = v
+		req := require(rt)
 
-		}
+		rt.GlobalObject().Set("require", req)
 
 		rt.GlobalObject().Set("returnStatus", func(code int, message string) error {
 			return &statusError{code: code, message: message}
 		})
 
-		_, err := rt.RunProgram(prog)
+		_, err = rt.RunProgram(prog)
 		if err != nil {
 			return nil, fmt.Errorf("could not eval handler script: %w", err)
 		}
@@ -114,11 +100,18 @@ func New(
 		rt := rtPool.Get().(*goja.Runtime)
 		defer rtPool.Put(rt)
 
-		for k, v := range requestTimeGlobals {
-			err = globals.ProvideRequestGlobalValue(requestPath, rt, w, r, k, v)
+		autowired, err := gl.Autowire(rt, r.Context(), r, w, types.HandlerPath(requestPath))
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			log.Error(err, "could not autowire globals")
+			return
+		}
+
+		for k, v := range autowired {
+			err = rt.GlobalObject().Set(k, v)
 			if err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
-				log.Error(err, "could set request time globals")
+				log.Error(err, "could not set global %s: %w", k, err)
 				return
 			}
 		}
@@ -137,6 +130,7 @@ func New(
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			log.Error(err, "could set log global")
+			return
 		}
 
 		fn, isFunction := goja.AssertFunction(v)
@@ -148,12 +142,12 @@ func New(
 
 		// remove globals at the end of the request before it's returned to the pool
 		defer func() {
-			for g := range requestTimeGlobals {
+			for g := range gl {
 				rt.GlobalObject().Delete(g)
 			}
 		}()
 
-		_, err := fn(nil, rt.ToValue(w), rt.ToValue(r), rt.ToValue(params))
+		_, err = fn(nil, rt.ToValue(w), rt.ToValue(r), rt.ToValue(params))
 
 		// check for statusError exception being thrown
 		exc := &goja.Exception{}

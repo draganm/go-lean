@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/leanweb"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
@@ -106,18 +104,6 @@ func TestSSE(t *testing.T) {
 	require.NoError(err)
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/sse", nil, 200)
 	require.HTTPBodyContains(w.ServeHTTP, "GET", "/sse", nil, "event: foo\ndata: bar\n\n")
-}
-
-func TestRuntimeValueFactory(t *testing.T) {
-	require := require.New(t)
-	w, err := leanweb.New(simple, "fixtures/simple", testr.New(t), map[string]any{
-		"myValue": globals.VMGlobalProvider(func(rt *goja.Runtime) (any, error) {
-			return "bar", nil
-		}),
-	})
-	require.NoError(err)
-	require.HTTPStatusCode(w.ServeHTTP, "GET", "/valueFactory", nil, 200)
-	require.HTTPBodyContains(w.ServeHTTP, "GET", "/valueFactory", nil, "bar")
 }
 
 func TestRenderToString(t *testing.T) {
