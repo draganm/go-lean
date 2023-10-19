@@ -23,7 +23,7 @@ type HTTPResponse struct {
 	Header     http.Header `lean:"header"`
 }
 
-func NewProvider(client *http.Client) globals.ContextGlobalProvider {
+func NewProvider(client *http.Client) func(ctx context.Context) globals.Values {
 
 	transport := client.Transport
 	if transport == nil {
@@ -34,7 +34,7 @@ func NewProvider(client *http.Client) globals.ContextGlobalProvider {
 
 	client.Transport = newTransport
 
-	return globals.ContextGlobalProvider(func(ctx context.Context) (any, error) {
+	return func(ctx context.Context) globals.Values {
 
 		return map[string]any{
 			"request": func(method, url string, opts HTTPOptions) (*HTTPResponse, error) {
@@ -75,6 +75,6 @@ func NewProvider(client *http.Client) globals.ContextGlobalProvider {
 				}, nil
 
 			},
-		}, nil
-	})
+		}
+	}
 }

@@ -8,12 +8,11 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/draganm/go-lean/common/globals"
 )
 
 var libRegexp = regexp.MustCompile(`^/lib/(.+).js$`)
 
-func NewProvider(src fs.FS, root string) (globals.VMGlobalProvider, error) {
+func NewProvider(src fs.FS, root string) (func(rt *goja.Runtime) func(libName string) (goja.Value, error), error) {
 
 	libs := map[string]string{}
 
@@ -50,7 +49,7 @@ func NewProvider(src fs.FS, root string) (globals.VMGlobalProvider, error) {
 		return nil, fmt.Errorf("could not get libs: %w", err)
 	}
 
-	return func(rt *goja.Runtime) (any, error) {
+	return func(rt *goja.Runtime) func(libName string) (goja.Value, error) {
 		return func(libName string) (goja.Value, error) {
 			libCode, found := libs[libName]
 			if !found {
@@ -61,7 +60,7 @@ func NewProvider(src fs.FS, root string) (globals.VMGlobalProvider, error) {
 				fmt.Sprintf(`(() => { var exports = {}; var module = { exports: exports}; %s; return module.exports})()`, libCode),
 			)
 
-		}, nil
+		}
 	}, nil
 
 }

@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/dop251/goja"
+	"github.com/draganm/go-lean/common/globals"
 )
 
 type LeanSQL struct {
@@ -15,7 +16,7 @@ type LeanSQL struct {
 	ctx context.Context
 }
 
-func New(db *sql.DB, vm *goja.Runtime, ctx context.Context) map[string]any {
+func New(db *sql.DB, vm *goja.Runtime, ctx context.Context) globals.Values {
 	ls := &LeanSQL{db: db, vm: vm, ctx: ctx}
 
 	return map[string]any{

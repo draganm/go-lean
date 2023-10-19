@@ -38,9 +38,8 @@ func (c collector) Collect(mc chan<- prometheus.Metric) {
 type metricInfo struct {
 	metricType     string
 	ConstantLabels prometheus.Labels `lean:"constantLabels"`
-	// VariableLabels []string
-	Description string        `lean:"description"`
-	Collect     goja.Callable `lean:"collect"`
+	Description    string            `lean:"description"`
+	Collect        goja.Callable     `lean:"collect"`
 
 	name string
 	vt   prometheus.ValueType
@@ -141,10 +140,15 @@ func Start(
 				return err
 			}
 
-			for k, v := range globs {
-				err = globals.ProvideVMGlobalValue(vm, k, v)
+			autowired, err := globs.Autowire(vm, context.Background())
+			if err != nil {
+				return fmt.Errorf("could not autowire globals: %w", err)
+			}
+
+			for k, v := range autowired {
+				err = vm.GlobalObject().Set(k, v)
 				if err != nil {
-					return err
+					return fmt.Errorf("could not set global %s: %w", k, err)
 				}
 			}
 			_, err = vm.RunScript(withoutPrefix, string(data))

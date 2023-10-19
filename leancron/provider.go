@@ -54,10 +54,10 @@ func Start(
 		return err
 	}
 
-	gl, err = gl.Merge(globals.Globals{"require": req})
-	if err != nil {
-		return err
-	}
+	// gl, err = gl.Merge(globals.Globals{"require": req})
+	// if err != nil {
+	// 	return err
+	// }
 
 	scheduler := gocron.NewScheduler(loc)
 	go func() {
@@ -111,8 +111,16 @@ func Start(
 			vm := goja.New()
 			vm.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
 
-			for k, v := range gl {
-				err = globals.ProvideContextAndVMGlobalValue(ctx, vm, k, v)
+			require := req(vm)
+			vm.GlobalObject().Set("require", require)
+
+			autowired, err := gl.Autowire(ctx, vm)
+			if err != nil {
+				return nil, fmt.Errorf("could not autowire globals: %w", err)
+			}
+
+			for k, v := range autowired {
+				err = vm.Set(k, v)
 				if err != nil {
 					return nil, fmt.Errorf("could not set global %s: %w", k, err)
 				}
