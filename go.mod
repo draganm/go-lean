@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/cbroglie/mustache v1.4.0
 	github.com/dop251/goja v0.0.0-20230427124612-428fc442ff5f
-	github.com/flosch/pongo2/v6 v6.0.0-00010101000000-000000000000
+	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-co-op/gocron v1.28.3
 	github.com/go-logr/logr v1.2.4
@@ -42,5 +42,3 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/flosch/pongo2/v6 => github.com/draganm/pongo2/v6 v6.0.1
