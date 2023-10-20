@@ -93,7 +93,7 @@ func Construct(ctx context.Context, src fs.FS, rootPath string, log logr.Logger,
 		return nil, fmt.Errorf("could not build mustache provider: %w", err)
 	}
 
-	pongo2, err := pongo2Builder.Create()
+	pongo2, err := pongo2Builder.Create(globs)
 	if err != nil {
 		return nil, fmt.Errorf("could not build pongo2 provider: %w", err)
 	}
