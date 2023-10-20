@@ -1,0 +1,1 @@
+this is a pongo template {% include "included.pongo2" %} {{ foo }}
