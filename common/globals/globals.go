@@ -102,7 +102,7 @@ outer:
 
 }
 
-func (g Globals) Autowire(vals ...any) (Globals, error) {
+func (g Globals) AutoWire(vals ...any) (Globals, error) {
 	res := Globals{}
 	for k, v := range g {
 		wv, err := autoWireFunction(v, vals...)
