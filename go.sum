@@ -19,10 +19,10 @@ github.com/dop251/goja v0.0.0-20230427124612-428fc442ff5f h1:3Z9NjtffvA8Qoh8xjgU
 github.com/dop251/goja v0.0.0-20230427124612-428fc442ff5f/go.mod h1:QMWlm50DNe14hD7t24KEqZuUdC9sOTy8W6XbCU1mlw4=
 github.com/dop251/goja_nodejs v0.0.0-20210225215109-d91c329300e7/go.mod h1:hn7BA7c8pLvoGndExHudxTDKZ84Pyvv+90pbBjbTz0Y=
 github.com/dop251/goja_nodejs v0.0.0-20211022123610-8dd9abb0616d/go.mod h1:DngW8aVqWbuLRMHItjPUyqdj+HWPvnQe8V8y1nDpIbM=
-github.com/draganm/pongo2/v6 v6.0.1 h1:EECVcEmTmEnjG1KI1zetVqokbOoSJmKjViRzJI18pMA=
-github.com/draganm/pongo2/v6 v6.0.1/go.mod h1:hdFHt6Ygfap9bzf5cKFNw8q8nsuzjh0ONdE1texQckU=
 github.com/felixge/httpsnoop v1.0.3 h1:s/nj+GCswXYzN5v2DpNMuMQYe+0DDwt5WVCU6CWBdXk=
 github.com/felixge/httpsnoop v1.0.3/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
+github.com/flosch/pongo2/v6 v6.0.0 h1:lsGru8IAzHgIAw6H2m4PCyleO58I40ow6apih0WprMU=
+github.com/flosch/pongo2/v6 v6.0.0/go.mod h1:CuDpFm47R0uGGE7z13/tTlt1Y6zdxvr2RLT5LJhsHEU=
 github.com/go-chi/chi/v5 v5.0.10 h1:rLz5avzKpjqxrYwXNfmjkrYYXOyLJd37pz53UFHC6vk=
 github.com/go-chi/chi/v5 v5.0.10/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
 github.com/go-co-op/gocron v1.28.3 h1:swTsge6u/1Ei51b9VLMz/YTzEzWpbsk5SiR7m5fklTI=
