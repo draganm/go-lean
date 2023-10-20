@@ -11,18 +11,12 @@ import (
 	"github.com/draganm/go-lean/cron"
 	"github.com/draganm/go-lean/metrics"
 	"github.com/draganm/go-lean/mustache"
+	"github.com/draganm/go-lean/pongo2"
 	"github.com/draganm/go-lean/require"
 	"github.com/draganm/go-lean/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-logr/logr"
 )
-
-type Lean struct {
-	files           map[string]func() ([]byte, error)
-	webBuilder      *web.Builder
-	mustacheBuilder *mustache.Builder
-	requireBuilder  *require.Builder
-}
 
 func Construct(ctx context.Context, src fs.FS, rootPath string, log logr.Logger, globs map[string]any) (*chi.Mux, error) {
 	files := map[string](func() ([]byte, error)){}
@@ -76,12 +70,17 @@ func Construct(ctx context.Context, src fs.FS, rootPath string, log logr.Logger,
 	webBuilder := web.NewBuilder()
 	requireBuilder := require.NewBuilder()
 	mustacheBuilder := mustache.NewBuilder()
+	pongo2Builder := pongo2.NewBuilder()
 
 	cc := chainedConsume{
+		pongo2Builder.Consume,
 		metricsBuilder.Consume,
 		cronBuilder.Consume,
 		requireBuilder.Consume,
 		mustacheBuilder.Consume,
+		// web builder has always to be the last
+		// since it will serve any unclaimed file
+		// under '/web' as static file
 		webBuilder.Consume,
 	}
 
@@ -94,9 +93,15 @@ func Construct(ctx context.Context, src fs.FS, rootPath string, log logr.Logger,
 		return nil, fmt.Errorf("could not build mustache provider: %w", err)
 	}
 
+	pongo2, err := pongo2Builder.Create()
+	if err != nil {
+		return nil, fmt.Errorf("could not build pongo2 provider: %w", err)
+	}
+
 	finalGlobs := globals.Globals{
 		"require":  req,
 		"mustache": mst,
+		"pongo2":   pongo2,
 	}
 
 	finalGlobs, err = finalGlobs.Merge(globs)
