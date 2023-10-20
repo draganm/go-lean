@@ -77,7 +77,7 @@ func (tl *templateLoader) Get(path string) (io.Reader, error) {
 	return bytes.NewReader(data), nil
 }
 
-func (b *Builder) Create(gl globals.Globals) (Pongo2Provider, error) {
+func (b *Builder) Create() (Pongo2Provider, error) {
 
 	loader := &templateLoader{
 		mu:    &sync.RWMutex{},
@@ -85,29 +85,6 @@ func (b *Builder) Create(gl globals.Globals) (Pongo2Provider, error) {
 	}
 
 	ts := pongo2.NewSet("lean", loader)
-
-	for k, v := range gl {
-
-		if strings.HasPrefix(k, "pongo2.filter.") {
-
-			ff, isFilterFunction := v.(pongo2.FilterFunction)
-
-			if !isFilterFunction {
-				ff, isFilterFunction = v.(func(in *pongo2.Value, param *pongo2.Value) (out *pongo2.Value, err *pongo2.Error))
-				if !isFilterFunction {
-					continue
-				}
-			}
-
-			name := strings.TrimPrefix(k, "pongo2.filter.")
-
-			err := ts.RegisterFilter(name, ff)
-			if err != nil {
-				return nil, fmt.Errorf("could not register pongo2 filter %s: %w", name, err)
-			}
-
-		}
-	}
 
 	return func(ctx context.Context, handlerPath types.HandlerPath, w http.ResponseWriter) globals.Values {
 
