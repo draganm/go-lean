@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/cbroglie/mustache v1.4.0
-	github.com/dop251/goja v0.0.0-20230427124612-428fc442ff5f
+	github.com/dop251/goja v0.0.0-20231014103939-873a1496dc8e
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-co-op/gocron v1.28.3
