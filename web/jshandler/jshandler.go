@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
+	"github.com/draganm/go-lean/common/goja/fieldmapper"
 	"github.com/draganm/go-lean/web/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-logr/logr"
@@ -42,7 +43,7 @@ func New(
 
 	createInstance := func() (*goja.Runtime, error) {
 		rt := goja.New()
-		rt.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
+		rt.SetFieldNameMapper(fieldmapper.FallbackFieldMapper{})
 
 		// I'm aware that not everything here will be wired properly, but
 		// this is necessary in order not to have to treat require()

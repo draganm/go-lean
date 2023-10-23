@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/draganm/go-lean/common/globals"
+	"github.com/draganm/go-lean/common/goja/fieldmapper"
 	"github.com/go-co-op/gocron"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -96,7 +97,7 @@ func (b *Builder) Start(ctx context.Context, log logr.Logger, gl globals.Globals
 		getCronInfo := func(ctx context.Context) (*CronInfo, error) {
 
 			vm := goja.New()
-			vm.SetFieldNameMapper(goja.TagFieldNameMapper("lean", false))
+			vm.SetFieldNameMapper(fieldmapper.FallbackFieldMapper{})
 
 			autoWired, err := gl.AutoWire(ctx, vm)
 			if err != nil {

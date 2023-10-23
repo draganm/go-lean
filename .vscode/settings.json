@@ -3,6 +3,7 @@
     "Callables",
     "draganm",
     "etag",
+    "fieldmapper",
     "gocron",
     "goja",
     "gojautils",
