@@ -2,6 +2,7 @@ package lean_test
 
 import (
 	"context"
+	"io/fs"
 	"testing"
 
 	"github.com/draganm/go-lean"
@@ -15,7 +16,10 @@ func TestMetricsProviders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	_, err = lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	metrics := findMetrics(t, "test", dto.MetricType_COUNTER)
