@@ -3,6 +3,7 @@ package lean_test
 import (
 	"context"
 	"embed"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +26,10 @@ func TestServingStaticFiles(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/", nil, 200)
@@ -38,7 +42,10 @@ func TestServingDynamicContent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/123", nil, 200)
@@ -51,7 +58,10 @@ func TestServingDynamicContentWithParams(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, logr.Discard(), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/vars/123", nil, 200)
@@ -65,7 +75,10 @@ func TestServingDynamicContentWithTemplates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/template", nil, 200)
@@ -79,7 +92,10 @@ func TestUsingLibraries(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/libuser", nil, 200)
@@ -91,7 +107,12 @@ func BenchmarkSimpleTemplate(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	handler, err := lean.Construct(ctx, simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	if err != nil {
+		b.Error(err)
+	}
+
+	handler, err := lean.Construct(ctx, sfs, logr.Discard(), map[string]any{})
 	if err != nil {
 		b.Error(err)
 	}
@@ -110,7 +131,12 @@ func BenchmarkUsingLibraries(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	handler, err := lean.Construct(ctx, simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	if err != nil {
+		b.Error(err)
+	}
+
+	handler, err := lean.Construct(ctx, sfs, logr.Discard(), map[string]any{})
 	if err != nil {
 		b.Error(err)
 	}
@@ -131,7 +157,10 @@ func TestSSE(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/sse", nil, 200)
 	require.HTTPBodyContains(w.ServeHTTP, "GET", "/sse", nil, "event: foo\ndata: bar\n\n")
@@ -143,7 +172,10 @@ func TestRenderToString(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/templateToString", nil, 200)
@@ -169,7 +201,10 @@ func TestMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", logr.Discard(), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, logr.Discard(), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/123", nil, 200)
@@ -187,7 +222,10 @@ func TestReturningStatus(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/status", nil, 401)

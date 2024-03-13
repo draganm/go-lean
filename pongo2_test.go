@@ -2,6 +2,7 @@ package lean_test
 
 import (
 	"context"
+	"io/fs"
 	"testing"
 
 	"github.com/draganm/go-lean"
@@ -15,7 +16,10 @@ func TestRenderingPongo2Templates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w, err := lean.Construct(ctx, simple, "fixtures/simple", testr.New(t), map[string]any{})
+	sfs, err := fs.Sub(simple, "fixtures/simple")
+	require.NoError(err)
+
+	w, err := lean.Construct(ctx, sfs, testr.New(t), map[string]any{})
 	require.NoError(err)
 
 	require.HTTPStatusCode(w.ServeHTTP, "GET", "/pongo2", nil, 200)

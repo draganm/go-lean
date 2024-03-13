@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"strings"
 
 	"github.com/draganm/go-lean/common/globals"
 	"github.com/draganm/go-lean/cron"
@@ -18,21 +17,19 @@ import (
 	"github.com/go-logr/logr"
 )
 
-func Construct(ctx context.Context, src fs.FS, rootPath string, log logr.Logger, globs map[string]any) (*chi.Mux, error) {
+func Construct(ctx context.Context, src fs.FS, log logr.Logger, globs map[string]any) (*chi.Mux, error) {
 	files := map[string](func() ([]byte, error)){}
 
-	err := fs.WalkDir(src, rootPath, func(pth string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(src, ".", func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
-		withoutPrefix := strings.TrimPrefix(pth, rootPath)
 
 		if d.IsDir() {
 			return nil
 		}
 
-		files[withoutPrefix] = func() ([]byte, error) {
+		files["/"+pth] = func() ([]byte, error) {
 			f, err := src.Open(pth)
 			if err != nil {
 				return nil, fmt.Errorf("could not open %s: %w", pth, err)
